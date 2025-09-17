@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arkm Hot Wallet Crawler @ KrsMt - Web</title>
+  <link rel="preconnect" href="https://api.arkm.com">
+  <link rel="preconnect" href="https://api.arkhamintelligence.com">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <img class="logo" src="./IMG_1621.WEBP" alt="KrsMt Logo">
+      <div class="title">Arkm Hot Wallet Crawler</div>
+      <div class="subtitle">KrsMt · Web Edition</div>
+    </div>
+    <div class="header-actions">
+      <span id="healthBadge" class="badge">Health: 未检测</span>
+      <button id="themeToggle" class="btn btn-secondary" aria-label="Toggle theme">切换主题</button>
+      <a class="btn btn-ghost" href="https://github.com/KrsMt-0113" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card inputs">
+      <h2>配置</h2>
+      <div class="grid two">
+        <label class="field">
+          <span>API Key</span>
+          <div class="input-row">
+            <input id="apiKey" type="password" placeholder="输入你的 Arkham API Key" autocomplete="off">
+            <button id="apiKeyCheck" class="btn btn-secondary" type="button">检查</button>
+          </div>
+        </label>
+        <label class="field">
+          <span>代理地址（可选，用于解决 CORS）</span>
+          <input id="proxyInput" type="url" placeholder="例如：https://你的-worker.workers.dev">
+        </label>
+      </div>
+      <div class="grid two">
+        <label class="field">
+          <span>Limit（每页条数 1-1000）</span>
+          <input id="limitInput" type="number" min="1" max="1000" step="1" value="500">
+        </label>
+        <label class="field">
+          <span>Pages（页数 1-10）</span>
+          <input id="pagesInput" type="number" min="1" max="10" step="1" value="3">
+        </label>
+      </div>
+      <div class="grid two">
+        <label class="field">
+          <span>实体搜索</span>
+          <input id="searchInput" type="text" placeholder="例如：Binance / OKX / Bybit" autocomplete="off">
+        </label>
+      </div>
+
+      <div class="actions">
+        <button id="searchBtn" class="btn btn-primary">搜索实体</button>
+        <button id="runBtn" class="btn btn-accent" disabled>开始爬取</button>
+        <button id="exportBtn" class="btn btn-secondary" disabled>导出 CSV</button>
+        <button id="clearBtn" class="btn btn-secondary">清空结果</button>
+      </div>
+
+      <div class="hint">提示：API Key 仅用于本次会话，不会被保存或上传。</div>
+    </section>
+
+    <section id="searchSection" class="card results hidden">
+      <div class="section-header">
+        <h2>搜索结果与选择</h2>
+        <span id="searchStatus" class="status"></span>
+      </div>
+      <div id="entityList" class="entity-list"></div>
+    </section>
+
+    <section id="progressSection" class="card progress hidden">
+      <div class="section-header">
+        <h2>进度</h2>
+        <span id="overallStatus" class="status"></span>
+      </div>
+      <div class="progress-bar">
+        <div id="overallProgress" class="progress-fill" style="width:0%"></div>
+      </div>
+      <div id="chainLogs" class="logs"></div>
+    </section>
+
+    <section id="resultSection" class="card table hidden">
+      <div class="section-header">
+        <h2>结果</h2>
+        <div class="result-controls">
+          <span id="resultStatus" class="status"></span>
+          <select id="chainFilter" class="chain-filter">
+            <option value="">全部链</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Chain</th>
+              <th>Address</th>
+              <th>Label</th>
+              <th>Arkham</th>
+            </tr>
+          </thead>
+          <tbody id="resultBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <span>KrsMt @ 2025.9</span>
+    <span>Telegram: KrsMt0113 · X: KrsMt0113</span>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
+
+
