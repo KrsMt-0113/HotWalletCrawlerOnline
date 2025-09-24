@@ -358,7 +358,8 @@ async function runCrawler({entity, apiKey, limit, pages, chains, proxy}){
 
 function setupTheme(){
   const root = document.documentElement;
-  const saved = sessionStorage.getItem('theme') || 'dark';
+  // default to light unless user explicitly toggled
+  const saved = sessionStorage.getItem('theme') || 'light';
   if(saved === 'light') root.classList.add('light'); else root.classList.remove('light');
   qs('#themeToggle').addEventListener('click', ()=>{
     root.classList.toggle('light');

@@ -11,15 +11,15 @@
 }
 
 html.light{
-  --bg:#f6f8fb;
+  --bg:#f7f9fc;
   --panel:#ffffff;
-  --text:#0c1220;
-  --muted:#516079;
-  --primary:#2563eb;
-  --accent:#059669;
-  --danger:#b91c1c;
-  --border:#e5e7eb;
-  --ghost:#eef2f7;
+  --text:#1f2937;
+  --muted:#6b7280;
+  --primary:#4c7df0;
+  --accent:#80e0c2;
+  --danger:#b45309;
+  --border:#e6eaf0;
+  --ghost:#f2f5fa;
 }
 
 *{box-sizing:border-box}
