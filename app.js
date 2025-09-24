@@ -193,10 +193,10 @@ function renderResults(rows){
   rows.forEach(r=>{
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${r.chain}</td>
-      <td class="addr">${r.address} <button class="btn btn-secondary" data-copy="${r.address}">复制</button></td>
-      <td>${r.label}</td>
-      <td><a href="${r.arkm_url}" target="_blank" rel="noopener noreferrer">查看</a></td>
+      <td data-label="Chain">${r.chain}</td>
+      <td class="addr" data-label="Address">${r.address} <button class="btn btn-secondary" data-copy="${r.address}">复制</button></td>
+      <td data-label="Label">${r.label}</td>
+      <td data-label="Link"><a href="${r.arkm_url}" target="_blank" rel="noopener noreferrer">查看</a></td>
     `;
     tbody.appendChild(tr);
   });
@@ -245,10 +245,10 @@ function appendResults(newRows, allResults){
     filtered.forEach(r=>{
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${r.chain}</td>
-        <td class="addr">${r.address}</td>
-        <td>${r.label}</td>
-        <td><a href="${r.arkm_url}" target="_blank" rel="noopener">查看</a></td>
+        <td data-label="Chain">${r.chain}</td>
+        <td class="addr" data-label="Address">${r.address} <button class="btn btn-secondary" data-copy="${r.address}">复制</button></td>
+        <td data-label="Label">${r.label}</td>
+        <td data-label="Link"><a href="${r.arkm_url}" target="_blank" rel="noopener noreferrer">查看</a></td>
       `;
       frag.appendChild(tr);
     });

@@ -128,4 +128,22 @@ tbody tr:hover{background:rgba(255,255,255,0.03)}
   .progress-fill::after{animation:none}
 }
 
+/* Mobile adjustments */
+@media (max-width:720px){
+  .app-header{flex-wrap:wrap;gap:8px}
+  .header-actions{width:100%;justify-content:flex-end}
+  .container{padding:0 12px 96px 12px}
+  .card{padding:12px}
+  .grid.two,.grid.three{grid-template-columns:1fr}
+  .btn{padding:12px 14px}
+  .entity{min-height:120px}
+  .logs{grid-template-columns:repeat(2,1fr)}
+  thead{display:none}
+  table, tbody, tr, td{display:block;width:100%}
+  tbody tr{border-bottom:1px solid var(--border)}
+  tbody td{display:flex;justify-content:space-between;align-items:center;padding:8px 10px}
+  tbody td::before{content:attr(data-label);color:var(--muted);margin-right:12px}
+  .addr{white-space:normal;word-break:break-all}
+}
+
 
