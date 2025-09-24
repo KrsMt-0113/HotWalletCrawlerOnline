@@ -43,9 +43,9 @@ async function fetchWithProxyFirst(url, options, proxy){
 }
 
 const api = {
-  async health(proxy){
+  async health(proxy, signal){
     const url = 'https://api.arkm.com/health';
-    const resp = await fetchWithProxyFirst(url, {cache:'no-store'}, proxy);
+    const resp = await fetchWithProxyFirst(url, {cache:'no-store', signal}, proxy);
     const raw = (await resp.text()).trim();
     if(!resp.ok){
       throw new Error(`HTTP ${resp.status} ${resp.statusText}: ${raw}`);
@@ -56,9 +56,9 @@ const api = {
     }
     return true;
   },
-  async checkKey(apiKey, proxy){
+  async checkKey(apiKey, proxy, signal){
     const url = 'https://api.arkm.com/chains';
-    const resp = await fetchWithProxyFirst(url, { headers: { 'API-Key': apiKey } }, proxy);
+    const resp = await fetchWithProxyFirst(url, { headers: { 'API-Key': apiKey }, signal }, proxy);
     const data = await resp.json().catch(()=>({}));
     // If response has a message field, assume invalid key
     if(data && typeof data === 'object' && 'message' in data){
@@ -66,14 +66,14 @@ const api = {
     }
     return { ok: true };
   },
-  async searchEntities(query, apiKey, proxy){
+  async searchEntities(query, apiKey, proxy, signal){
     const url = `https://api.arkm.com/intelligence/search?query=${encodeURIComponent(query)}`;
-    const resp = await fetchWithProxyFirst(url, { headers: { 'API-Key': apiKey } }, proxy);
+    const resp = await fetchWithProxyFirst(url, { headers: { 'API-Key': apiKey }, signal }, proxy);
     if(!resp.ok) throw new Error(`Search failed: ${resp.status}`);
     const data = await resp.json();
     return data.arkhamEntities || [];
   },
-  async fetchTransfers({chain, entityId, limit, offset, apiKey, proxy}){
+  async fetchTransfers({chain, entityId, limit, offset, apiKey, proxy, signal}){
     const url = new URL('https://api.arkhamintelligence.com/transfers');
     url.searchParams.set('base', entityId);
     url.searchParams.set('chains', chain);
@@ -83,11 +83,31 @@ const api = {
     url.searchParams.set('sortKey', 'time');
     url.searchParams.set('sortDir', 'desc');
     url.searchParams.set('usdGte', '1');
-    const resp = await fetchWithProxyFirst(url.toString(), { headers: { 'API-Key': apiKey } }, proxy);
+    const resp = await fetchWithProxyFirst(url.toString(), { headers: { 'API-Key': apiKey }, signal }, proxy);
     if(!resp.ok) throw new Error(`Transfers failed @${chain}: ${resp.status}`);
     return resp.json();
   }
 };
+
+// Simple concurrency controller to run async tasks with a limit
+async function mapWithConcurrency(items, limit, task){
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const running = new Set();
+  async function runOne(){
+    if(nextIndex >= items.length) return;
+    const current = nextIndex++;
+    const p = (async()=>{
+      results[current] = await task(items[current], current);
+    })().finally(()=>{ running.delete(p); });
+    running.add(p);
+    if(running.size >= limit){ await Promise.race(running); }
+    return runOne();
+  }
+  const starters = Array(Math.min(limit, items.length)).fill(0).map(runOne);
+  await Promise.all(starters);
+  return results;
+}
 
 function extractHotWallet(addrInfo, target, expectedEntityName){
   const entityName = addrInfo?.arkhamEntity?.name;
@@ -174,9 +194,9 @@ function renderResults(rows){
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${r.chain}</td>
-      <td class="addr">${r.address}</td>
+      <td class="addr">${r.address} <button class="btn btn-secondary" data-copy="${r.address}">复制</button></td>
       <td>${r.label}</td>
-      <td><a href="${r.arkm_url}" target="_blank" rel="noopener">查看</a></td>
+      <td><a href="${r.arkm_url}" target="_blank" rel="noopener noreferrer">查看</a></td>
     `;
     tbody.appendChild(tr);
   });
@@ -193,11 +213,12 @@ function updateChainFilter(allResults){
   const currentValue = filter.value;
   filter.innerHTML = '<option value="">全部链</option>';
   
-  const chains = [...new Set(allResults.map(r => r.chain))].sort();
+  const counts = allResults.reduce((acc, r)=>{ acc[r.chain] = (acc[r.chain]||0)+1; return acc; }, {});
+  const chains = Object.keys(counts).sort();
   chains.forEach(chain => {
     const option = document.createElement('option');
     option.value = chain;
-    option.textContent = chain;
+    option.textContent = `${chain} (${counts[chain]})`;
     if(chain === currentValue) option.selected = true;
     filter.appendChild(option);
   });
@@ -253,6 +274,12 @@ function download(filename, text){
   URL.revokeObjectURL(url);
 }
 
+function createAbortableTimeoutSignal(ms){
+  const controller = new AbortController();
+  const id = setTimeout(()=>controller.abort(new Error('请求超时')), ms);
+  return { signal: controller.signal, cancel: ()=>clearTimeout(id), controller };
+}
+
 async function runCrawler({entity, apiKey, limit, pages, chains, proxy}){
   const allResults = [];
   const totalChains = chains.length;
@@ -268,7 +295,7 @@ async function runCrawler({entity, apiKey, limit, pages, chains, proxy}){
   }
   updateResultSummary();
 
-  for(const chain of chains){
+  async function crawlOneChain(chain){
     const chainStartTime = Date.now();
     try{
       setChainStatus(chain, '进行中 · 第 0/' + pages + ' 页 · 已获 0', chainStartTime);
@@ -276,36 +303,40 @@ async function runCrawler({entity, apiKey, limit, pages, chains, proxy}){
       let found = 0;
       for(let i=0;i<pages;i++){
         const offset = i * limit;
-        // Gentle rate-limit to avoid hitting hard limits
         if(i>0) await new Promise(r=>setTimeout(r, 1000));
-        const data = await api.fetchTransfers({chain, entityId: entity.id, limit, offset, apiKey, proxy});
-        const transfers = data.transfers || [];
-        if(transfers.length === 0){
-          completedPages += (pages - i);
+        const { signal, cancel } = createAbortableTimeoutSignal(15000);
+        try{
+          const data = await api.fetchTransfers({chain, entityId: entity.id, limit, offset, apiKey, proxy, signal});
+          const transfers = data.transfers || [];
+          if(transfers.length === 0){
+            completedPages += (pages - i);
+            const overall = Math.round((completedPages/totalPages)*100);
+            setProgress(overall);
+            setStatus('#overallStatus', `进度 ${overall}%`);
+            break;
+          }
+          const before = Object.keys(merged).length;
+          transfers.forEach(tx => {
+            if(tx.fromAddressOwner){
+              extractHotWallet(tx.fromAddressOwner, merged, entity.name);
+            } else {
+              extractHotWallet(tx.fromAddress, merged, entity.name);
+            }
+          });
+          found = Object.keys(merged).length;
+          const deltaNew = found - before;
+          if(deltaNew > 0){
+            const newly = Object.values(merged).slice(-deltaNew);
+            appendResults(newly, allResults);
+          }
+          setChainStatus(chain, `进行中 · 第 ${i+1}/${pages} 页 · 已获 ${found}`, chainStartTime);
+          completedPages += 1;
           const overall = Math.round((completedPages/totalPages)*100);
           setProgress(overall);
           setStatus('#overallStatus', `进度 ${overall}%`);
-          break;
+        } finally {
+          cancel();
         }
-        const before = Object.keys(merged).length;
-        transfers.forEach(tx => {
-          if(tx.fromAddressOwner){
-            extractHotWallet(tx.fromAddressOwner, merged, entity.name);
-          } else {
-            extractHotWallet(tx.fromAddress, merged, entity.name);
-          }
-        });
-        found = Object.keys(merged).length;
-        const deltaNew = found - before;
-        if(deltaNew > 0){
-          const newly = Object.values(merged).slice(-deltaNew);
-          appendResults(newly, allResults);
-        }
-        setChainStatus(chain, `进行中 · 第 ${i+1}/${pages} 页 · 已获 ${found}`, chainStartTime);
-        completedPages += 1;
-        const overall = Math.round((completedPages/totalPages)*100);
-        setProgress(overall);
-        setStatus('#overallStatus', `进度 ${overall}%`);
       }
       const list = Object.values(merged);
       allResults.push(...list);
@@ -318,6 +349,9 @@ async function runCrawler({entity, apiKey, limit, pages, chains, proxy}){
       updateResultSummary();
     }
   }
+
+  // Run with limited concurrency to speed up overall crawl without overloading API
+  await mapWithConcurrency(chains, 3, crawlOneChain);
 
   return allResults;
 }
@@ -353,6 +387,10 @@ function init(){
   let selectedEntity = null;
   let results = [];
 
+  // request cancellation handles
+  let healthController = null;
+  let searchController = null;
+
   async function updateHealthBadge(){
     const apiKey = apiKeyInput.value.trim();
     const proxy = proxyInput.value.trim();
@@ -366,7 +404,10 @@ function init(){
     
     healthBadge.textContent = 'Health: 检测中...'; healthBadge.className = 'badge';
     try{
-      await api.health(proxy || undefined);
+      if(healthController){ healthController.abort(); }
+      healthController = new AbortController();
+      const { signal, abort } = healthController;
+      await api.health(proxy || undefined, signal);
       healthBadge.textContent = 'Health: OK';
       healthBadge.className = 'badge ok';
     }catch(e){
@@ -402,7 +443,9 @@ function init(){
     setStatus('#searchStatus', '搜索中...');
     searchBtn.disabled = true; clearBtn.disabled = true; runBtn.disabled = true;
     try{
-      entities = await api.searchEntities(q, apiKey, proxy || undefined);
+      if(searchController){ searchController.abort(); }
+      searchController = new AbortController();
+      entities = await api.searchEntities(q, apiKey, proxy || undefined, searchController.signal);
       searchSection.classList.remove('hidden');
       if(entities.length === 0){ setStatus('#searchStatus', '未找到实体'); renderEntities([]); runBtn.disabled = true; return; }
       setStatus('#searchStatus', `找到 ${entities.length} 个实体，请选择`);
@@ -432,7 +475,10 @@ function init(){
     btn.textContent = '检查中...';
     let success = false;
     try{
-      const res = await api.checkKey(apiKey, proxy || undefined);
+      const ctrl = new AbortController();
+      const timeout = setTimeout(()=>ctrl.abort(), 15000);
+      const res = await api.checkKey(apiKey, proxy || undefined, ctrl.signal);
+      clearTimeout(timeout);
       if(res.ok){
         btn.textContent = '✓';
         btn.classList.add('btn-success');
@@ -505,6 +551,30 @@ function init(){
     const filter = qs('#chainFilter').value;
     const filtered = filterResults(results, filter);
     renderResults(filtered);
+  });
+
+  // Enter to trigger search
+  [apiKeyInput, searchInput, limitInput, pagesInput, proxyInput].forEach(input => {
+    input.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        searchBtn.click();
+      }
+    });
+  });
+
+  // Copy address via event delegation
+  qs('#resultBody').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-copy]');
+    if(!btn) return;
+    const text = btn.getAttribute('data-copy');
+    navigator.clipboard.writeText(text).then(()=>{
+      btn.textContent = '已复制';
+      setTimeout(()=>{ btn.textContent = '复制'; }, 1200);
+    }).catch(()=>{
+      btn.textContent = '失败';
+      setTimeout(()=>{ btn.textContent = '复制'; }, 1200);
+    });
   });
 
   exportBtn.addEventListener('click', ()=>{

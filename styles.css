@@ -76,6 +76,7 @@ body{
 
 .actions{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
 .btn{border:1px solid var(--border);background:var(--ghost);color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer}
+.btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
 .btn-primary{background:var(--primary);border-color:transparent;color:#fff}
 .btn-accent{background:var(--accent);border-color:transparent;color:#fff}
@@ -118,7 +119,13 @@ thead th{position:sticky;top:0;background:var(--panel);border-bottom:1px solid v
 tbody td{border-top:1px solid var(--border);padding:10px}
 tbody tr:hover{background:rgba(255,255,255,0.03)}
 .addr{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+.addr{white-space:nowrap}
 
 .app-footer{position:fixed;left:0;right:0;bottom:0;background:var(--panel);display:flex;justify-content:space-between;gap:8px;padding:16px 20px;border-top:1px solid var(--border);color:var(--muted);z-index:40}
+
+@media (prefers-reduced-motion: reduce){
+  .progress-fill{transition:none}
+  .progress-fill::after{animation:none}
+}
 
 

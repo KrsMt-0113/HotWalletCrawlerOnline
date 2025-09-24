@@ -4,22 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Arkm Hot Wallet Crawler @ KrsMt - Web</title>
-  <link rel="preconnect" href="https://api.arkm.com">
-  <link rel="preconnect" href="https://api.arkhamintelligence.com">
+  <link rel="preconnect" href="https://api.arkm.com" crossorigin>
+  <link rel="preconnect" href="https://api.arkhamintelligence.com" crossorigin>
   <link rel="stylesheet" href="./styles.css">
   <link rel="icon" href="data:,">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; connect-src 'self' https://api.arkm.com https://api.arkhamintelligence.com https://*.workers.dev; style-src 'self'; script-src 'self';">
+  <meta name="theme-color" content="#0b0f14">
+  <meta name="description" content="Arkham 热钱包抓取器（Web 版），支持多链并发检索与导出。">
 </head>
 <body>
   <header class="app-header">
     <div class="brand">
-      <img class="logo" src="./IMG_1621.WEBP" alt="KrsMt Logo">
+      <img class="logo" src="./IMG_1621.WEBP" alt="KrsMt Logo" width="32" height="32" decoding="async">
       <div class="title">Arkm Hot Wallet Crawler</div>
       <div class="subtitle">KrsMt · Web Edition</div>
     </div>
     <div class="header-actions">
-      <span id="healthBadge" class="badge">Health: 未检测</span>
+      <span id="healthBadge" class="badge" role="status" aria-live="polite">Health: 未检测</span>
       <button id="themeToggle" class="btn btn-secondary" aria-label="Toggle theme">切换主题</button>
-      <a class="btn btn-ghost" href="https://github.com/KrsMt-0113" target="_blank" rel="noopener">GitHub</a>
+  <a class="btn btn-ghost" href="https://github.com/KrsMt-0113" target="_blank" rel="noopener noreferrer">GitHub</a>
     </div>
   </header>
 
@@ -69,7 +72,7 @@
     <section id="searchSection" class="card results hidden">
       <div class="section-header">
         <h2>搜索结果与选择</h2>
-        <span id="searchStatus" class="status"></span>
+        <span id="searchStatus" class="status" role="status" aria-live="polite"></span>
       </div>
       <div id="entityList" class="entity-list"></div>
     </section>
@@ -77,7 +80,7 @@
     <section id="progressSection" class="card progress hidden">
       <div class="section-header">
         <h2>进度</h2>
-        <span id="overallStatus" class="status"></span>
+        <span id="overallStatus" class="status" role="status" aria-live="polite"></span>
       </div>
       <div class="progress-bar">
         <div id="overallProgress" class="progress-fill" style="width:0%"></div>
@@ -89,7 +92,7 @@
       <div class="section-header">
         <h2>结果</h2>
         <div class="result-controls">
-          <span id="resultStatus" class="status"></span>
+          <span id="resultStatus" class="status" role="status" aria-live="polite"></span>
           <select id="chainFilter" class="chain-filter">
             <option value="">全部链</option>
           </select>
