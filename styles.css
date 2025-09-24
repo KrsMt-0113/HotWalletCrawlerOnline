@@ -130,20 +130,28 @@ tbody tr:hover{background:rgba(255,255,255,0.03)}
 
 /* Mobile adjustments */
 @media (max-width:720px){
-  .app-header{flex-wrap:wrap;gap:8px}
-  .header-actions{width:100%;justify-content:flex-end}
-  .container{padding:0 12px 96px 12px}
-  .card{padding:12px}
+  .app-header{flex-wrap:nowrap;gap:6px;padding:10px 12px}
+  .header-actions{width:auto;justify-content:flex-end;gap:6px}
+  .container{padding:0 10px 80px 10px}
+  .card{padding:10px}
+  .brand{gap:6px}
+  .logo{width:28px;height:28px}
+  .title{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:50vw}
+  .subtitle{display:none}
   .grid.two,.grid.three{grid-template-columns:1fr}
-  .btn{padding:12px 14px}
+  .btn{padding:8px 10px;font-size:12px}
   .entity{min-height:120px}
-  .logs{grid-template-columns:repeat(2,1fr)}
+  .logs{grid-template-columns:1fr}
+  .badge{font-size:10px;padding:2px 6px}
+  .status{font-size:11px}
+  .chain-filter{font-size:12px}
   thead{display:none}
   table, tbody, tr, td{display:block;width:100%}
   tbody tr{border-bottom:1px solid var(--border)}
   tbody td{display:flex;justify-content:space-between;align-items:center;padding:8px 10px}
   tbody td::before{content:attr(data-label);color:var(--muted);margin-right:12px}
   .addr{white-space:normal;word-break:break-all}
+  .app-footer{padding:8px 12px;font-size:11px;gap:6px;flex-wrap:wrap;justify-content:center}
 }
 
 
