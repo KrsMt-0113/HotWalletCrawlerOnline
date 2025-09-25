@@ -229,8 +229,14 @@ function updateChainFilter(allResults){
   filter.innerHTML = '<option value="">全部链</option>';
   
   const counts = allResults.reduce((acc, r)=>{ acc[r.chain] = (acc[r.chain]||0)+1; return acc; }, {});
-  const chains = CHAINS.filter(c => counts[c] != null);
-  chains.forEach(chain => {
+  const present = Object.keys(counts);
+  present.sort((a,b)=>{
+    const ai = CHAIN_INDEX[a] ?? 9999;
+    const bi = CHAIN_INDEX[b] ?? 9999;
+    if(ai !== bi) return ai - bi;
+    return a.localeCompare(b);
+  });
+  present.forEach(chain => {
     const option = document.createElement('option');
     option.value = chain;
     option.textContent = `${chain} (${counts[chain]})`;
@@ -247,8 +253,17 @@ function appendResults(newRows, allResults){
   if(!newRows || !newRows.length) return;
   const filter = qs('#chainFilter');
   const currentFilter = filter.value;
+  // Merge new rows into allResults with de-dup by chain+address
+  const existing = new Set(allResults.map(r => `${r.address}@${r.chain}`));
+  newRows.forEach(r => {
+    const key = `${r.address}@${r.chain}`;
+    if(!existing.has(key)){
+      existing.add(key);
+      allResults.push(r);
+    }
+  });
+  // Update filter options and re-render current view
   updateChainFilter(allResults);
-  // Re-render visible table preserving all rows that match current filter
   const visible = filterResults(allResults, currentFilter);
   renderResults(visible);
 }
@@ -337,8 +352,7 @@ async function runCrawler({entity, apiKey, limit, pages, chains, proxy}){
           cancel();
         }
       }
-      const list = Object.values(merged).map(r => ({...r, _seq: globalSeq++}));
-      allResults.push(...list);
+      const list = Object.values(merged);
       // Re-render current view to ensure persistent table state
       const currentFilter = qs('#chainFilter').value;
       renderResults(filterResults(allResults, currentFilter));
