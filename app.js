@@ -9,6 +9,20 @@ const qs = (sel)=>document.querySelector(sel);
 const qsa = (sel)=>Array.from(document.querySelectorAll(sel));
 
 // removed chain icons due to external load issues
+// Chain ordering map for consistent display
+const CHAIN_INDEX = CHAINS.reduce((m, c, i)=>{ m[c] = i; return m; }, {});
+
+function sortByChainOrder(rows){
+  return rows.slice().sort((a,b)=>{
+    const ai = CHAIN_INDEX[a.chain] ?? 9999;
+    const bi = CHAIN_INDEX[b.chain] ?? 9999;
+    if(ai !== bi) return ai - bi;
+    const as = a._seq ?? 0;
+    const bs = b._seq ?? 0;
+    return as - bs;
+  });
+}
+
 
 function buildProxyUrl(proxyBase, target){
   // Expect a proxy that takes target in a query param ?url=
@@ -190,7 +204,8 @@ function renderEntities(entities){
 function renderResults(rows){
   const tbody = qs('#resultBody');
   tbody.innerHTML = '';
-  rows.forEach(r=>{
+  const ordered = sortByChainOrder(rows);
+  ordered.forEach(r=>{
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td data-label="Chain">${r.chain}</td>
@@ -214,7 +229,7 @@ function updateChainFilter(allResults){
   filter.innerHTML = '<option value="">全部链</option>';
   
   const counts = allResults.reduce((acc, r)=>{ acc[r.chain] = (acc[r.chain]||0)+1; return acc; }, {});
-  const chains = Object.keys(counts).sort();
+  const chains = CHAINS.filter(c => counts[c] != null);
   chains.forEach(chain => {
     const option = document.createElement('option');
     option.value = chain;
@@ -232,28 +247,10 @@ function appendResults(newRows, allResults){
   if(!newRows || !newRows.length) return;
   const filter = qs('#chainFilter');
   const currentFilter = filter.value;
-  
-  // Update filter options if new chains appear
   updateChainFilter(allResults);
-  
-  // Only append if current filter matches or is "all"
-  if(!currentFilter || newRows.some(r => r.chain === currentFilter)){
-    const tbody = qs('#resultBody');
-    const frag = document.createDocumentFragment();
-    const filtered = currentFilter ? newRows.filter(r => r.chain === currentFilter) : newRows;
-    
-    filtered.forEach(r=>{
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td data-label="Chain">${r.chain}</td>
-        <td class="addr" data-label="Address">${r.address} <button class="btn btn-secondary" data-copy="${r.address}">复制</button></td>
-        <td data-label="Label">${r.label}</td>
-        <td data-label="Link"><a href="${r.arkm_url}" target="_blank" rel="noopener noreferrer">查看</a></td>
-      `;
-      frag.appendChild(tr);
-    });
-    tbody.appendChild(frag);
-  }
+  // Re-render visible table preserving all rows that match current filter
+  const visible = filterResults(allResults, currentFilter);
+  renderResults(visible);
 }
 
 function toCSV(rows){
@@ -295,6 +292,8 @@ async function runCrawler({entity, apiKey, limit, pages, chains, proxy}){
   }
   updateResultSummary();
 
+  let globalSeq = 0;
+
   async function crawlOneChain(chain){
     const chainStartTime = Date.now();
     try{
@@ -326,7 +325,7 @@ async function runCrawler({entity, apiKey, limit, pages, chains, proxy}){
           found = Object.keys(merged).length;
           const deltaNew = found - before;
           if(deltaNew > 0){
-            const newly = Object.values(merged).slice(-deltaNew);
+            const newly = Object.values(merged).slice(-deltaNew).map(r => ({...r, _seq: globalSeq++}));
             appendResults(newly, allResults);
           }
           setChainStatus(chain, `进行中 · 第 ${i+1}/${pages} 页 · 已获 ${found}`, chainStartTime);
@@ -338,8 +337,11 @@ async function runCrawler({entity, apiKey, limit, pages, chains, proxy}){
           cancel();
         }
       }
-      const list = Object.values(merged);
+      const list = Object.values(merged).map(r => ({...r, _seq: globalSeq++}));
       allResults.push(...list);
+      // Re-render current view to ensure persistent table state
+      const currentFilter = qs('#chainFilter').value;
+      renderResults(filterResults(allResults, currentFilter));
       setChainStatus(chain, `完成 · 共 ${list.length} 个地址`, chainStartTime);
     }catch(err){
       console.error(err);
